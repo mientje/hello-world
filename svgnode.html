@@ -1,0 +1,373 @@
+<!-- TO DO
+  responsive -> em of rem
+  touchscreen -> beeldje
+  event listener onclick beeldje?
+  data ingeven - superfunctie met json object
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Presentation</title>
+    <meta charset="utf-8">
+    <!--<meta content="initial-scale=1" width="device-width" name="viewport">-->
+    <script src="../static/d3.min.js"></script>
+    <!--<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>-->
+  </head>
+  <style>
+    body, html {
+      width: 100%;
+      height: 100%;
+    }
+    body {
+      font-family : "Arial Narrow";
+      font-size: 16px;
+      display: grid;
+      justify-content: center;
+      align-items: center;
+    }
+    svg {
+      border : 5px dashed purple;
+    }
+    @keyframes growImage {
+      from {
+        height: 10%;
+        width: 10%;
+      }
+      to {
+        height: 100%;
+        width: 100%;
+        transform: translate(0, -25%);
+      }
+    }
+    .grow {
+      width : 10%;
+      height : 10%;
+    }
+    .grow:hover {
+        animation-duration: 0.6s;
+        animation-name: growImage;
+        animation-fill-mode: forwards;
+    }
+
+  </style>
+  <body>
+    <svg ></svg>
+  </body>
+  <script>
+
+    (function() {
+      const svg = document.querySelector('svg')
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      svg.style.width = width - 50 + 'px';
+      svg.style.height = height - 50 + 'px';
+      svg.setAttribute('viewbox', '0 0 ' + (width - 100) + ' '  + (height - 100))
+    })()
+
+    function createLemma(lemma, image) {
+
+      this.lemma = lemma;
+      this.image = image;
+      this.usedAngle = 0;
+      const svg = d3.select('svg')
+      const lineLength = 100
+      const radius = 8
+      const symbolRadius = 15
+      const symbolStrokeWidth = 2
+
+      this.centerLemma = function() {
+
+        //centering the text : Thinking outside the box. You can change the viewBox on the SVG to move the zero coordinate to the center.
+
+        const padding = 10;
+        const margin = 10
+        const lemmaCenter= svg.append('g').attr('id', 'lemmaCenter')
+        const lemmaRect = lemmaCenter.append('g').attr('id', 'lemmaRect')
+
+        lemmaRect.append('text')
+          .text(this.lemma)
+          .attr('text-anchor', 'middle')
+          .attr('dominant-baseline', 'middle')
+
+        const textData = d3.select('text').node().getBBox();
+
+        lemmaRect.append("rect")
+          .attr("x", textData.x - padding)
+          .attr("width", textData.width + (padding * 2))
+          .attr("y", textData.y - padding)
+          .attr("height",  textData.height + (padding * 2))
+          .attr("stroke", "blue")
+          .attr("fill-opacity", "0")
+          .attr("stroke-width", "3")
+
+        lemmaRect.style('transform', 'translate(50%, 50%)')
+
+        const rectData = d3.select("#lemmaRect").node().getBBox();
+
+        appendNode(rectData, "#lemmaRect", "red", "upperLeft")
+        appendNode(rectData, "#lemmaRect", "blue", "upperRight")
+        appendNode(rectData, "#lemmaRect", "yellow", "lowerLeft")
+        appendNode(rectData, "#lemmaRect", "purple", "lowerRight")
+
+        lemmaRect.append('image')
+          .attr("x", rectData.x + margin)
+          .attr("y", rectData.y - "25%")
+          .attr("href", image)
+          .attr("class", "grow")
+          .attr("z-index", 5)
+      }
+
+      const appendNode = function(forkData, sourceNode, stroke, id) {
+
+        const source = d3.select(sourceNode)
+        let x1, x2, y1, y2;
+
+        if(id.indexOf('Right') > 0) {
+          x1 = forkData.x + forkData.width
+          x2 = x1+lineLength
+        }
+        else {
+          x1 = forkData.x
+          x2 = x1 - lineLength
+        }
+        if(id.indexOf('upper') >= 0) {
+          y1 = forkData.y
+          y2 = y1 -lineLength
+        }
+        else {
+          y1 = forkData.y + forkData.height
+          y2 = y1 + lineLength
+        }
+
+        source.append('line')
+          .attr("x1", x1)
+          .attr("x2", x2)
+          .attr("y1", y1)
+          .attr("y2", y2)
+          .attr("stroke", stroke)
+          .attr("id", id)
+        source.append("circle")
+          .attr("id", id+"Circle")
+          .attr("stroke", stroke)
+          .attr("cx", x2)
+          .attr("cy", y2)
+          .attr("r", radius)
+          .attr("fill", stroke)
+
+          return { "x1" : x1, "x2" : x2, "y1" : y1, "y2" : y2}
+
+      }
+
+      this.fork = function(lines, node, color, relarr) {
+
+        const lemmaRect = d3.select("#lemmaRect")
+        const nodeData = lemmaRect.node().getBBox()
+        let angle = (lines % 2 !== 0) ? 0 : -22.5;
+        let increase = false;
+        const forkG = lemmaRect.append('g')
+          .attr("id", node.substr(1) + "Fork")
+
+        const centerData = d3.select("#lemmaRect text").node().getBBox()
+        const x = (node.indexOf('Right') >= 0) ?
+          centerData.x + centerData.width/2 + lineLength + (radius*4) + 'px' :
+          centerData.x - centerData.width/2 - lineLength + (radius*2)  + 'px'
+        const y = (node.indexOf('upper') >= 0) ?
+          centerData.y + centerData.height/2 - lineLength - (radius*2) + 'px' :
+          centerData.y + centerData.height/2 + lineLength + (radius*2) + 'px'
+
+        forkG.style('transform', 'translate(' + x + ', ' + y + ')')
+
+        for(let i = 0; i < lines; i++) {
+
+          forkG.append('g').attr('id',  node.substr(1)+i.toString());
+
+          const forkGData = d3.select(node+i.toString()).node().getBBox()
+
+          const {x1, x2, y1, y2 } = appendNode(forkGData, node+i.toString(), color, node.substr(1)+'Line' + i.toString())
+
+          appendRect(node+i.toString())
+
+          angle = (lines % 2 !== 0) ?
+            (i % 2 !== 0) ? calculateAngle(node+i.toString(), x1, y1, angle, true) : calculateAngle(node+i.toString(), x1, y1, angle, false) :
+            (i % 2 === 0) ? calculateAngle(node+i.toString(),  x1, y1, angle, true) : calculateAngle(node+i.toString(), x1, y1, angle, false)
+
+
+          // dit is nog niet in orde- zit ingewikkelder in elkaar
+          textAngle = (i % 2 && node.indexOf('Right') >= 0) ? -angle : angle
+
+          switch(relarr[i]) {
+            case 'opposite':
+              appendOpposite(node+i.toString(), textAngle);
+              break;
+            case 'synonym':
+              appendSynonym(node+i.toString(), textAngle);
+              break;
+            case 'association':
+              appendAssociation(node+i.toString(), textAngle);
+              break;
+            case 'gender':
+              appendGender(node+i.toString(), textAngle);
+              break;
+            case 'collection':
+              appendCollection(node+i.toString(), textAngle);
+              break;
+          }
+        }
+
+        function calculateAngle(el, x1, y1, angle, increase) {
+          console.log(el)
+          const line = d3.select(el);
+          const rect = d3.select(el + " rect")
+          if(increase) { angle += 45; }
+          const usedAngle = (increase) ? angle : -angle;
+          line.attr("transform", "rotate(" + usedAngle + ")")
+          if(el.indexOf("lowerLeft") >= 0) {
+            rect.attr("transform", "rotate(" + (-usedAngle) + " " + (-lineLength) + " " + lineLength + ")")                        
+          }
+          else if(el.indexOf('lowerRight') >= 0) {
+            rect.attr("transform", "rotate(" + (-usedAngle) + ' ' + lineLength + ' ' + lineLength + ")")                                    
+          }
+          else if(el.indexOf('upperLeft') >= 0) {
+            rect.attr("transform", "rotate(" + (-usedAngle) + ' ' + (-lineLength) + ' ' + (-lineLength) + ")")                                    
+          }          
+          else {
+            rect.attr("transform", "rotate(" + (-usedAngle) + " " + lineLength + " " + -lineLength + ")")            
+          }
+          
+          increase = false;
+          return angle;
+        }
+      }
+
+      const createSymbol = function (relationship, id, angle) {
+
+        const symbolId = relationship + id.substr(1);
+        d3.select(id).append('g').attr('id', symbolId)
+        const symbol = d3.select("#" + symbolId)
+          .style("font-size", "30px")
+          .attr("fill", "yellow")
+          .attr("text-anchor", "middle")
+          .attr("dominant-baseline", "middle")
+
+        symbol.append('circle')
+          .attr("r", symbolRadius)
+          .attr("stroke-width", symbolStrokeWidth)
+          .attr("stroke", "yellow")
+          .attr("fill", "blue")
+
+        return symbol
+
+      }
+
+      const positionSymbol = function(symbol, id, angle, trans) {
+
+        const lineData = d3.select(id).node().getBBox()
+
+        const transformX = (id.indexOf("Right") >= 0) ? lineLength / 2  : -lineLength / 2  
+        const transformY = (id.indexOf("upper") >= 0) ? -lineLength / 2 : lineLength / 2 
+
+        symbol.attr("transform", "translate(" + transformX  +  ", " + transformY + "), rotate(" + angle + ")")
+
+        symbol.select("text")
+          .attr("transform", "translate(" + trans.x  + ', ' + trans.y + ")")
+      }
+
+      const appendRect = function(id) {
+        const width = 90
+        const height = 45
+        const x = (id.indexOf('Right') >=0 ) ? width/2 + radius : -(width/2 +lineLength) 
+        const y = (id.indexOf('lower') >= 0 ) ? lineLength + radius : - (lineLength + radius + height)              
+      
+        const fork = d3.select(id)
+          .append('rect')
+          .attr("width", width)
+          .attr("height", height)
+          .attr("fill", "green")          
+          .attr("x", x )
+          .attr("y", y)
+
+      }
+
+      const appendOpposite = function(id, angle) {
+
+        const opposite = createSymbol('opposite', id)
+
+        opposite.append("text")
+          .html("&#8596")
+
+        positionSymbol(opposite, id, angle, { "x" : 0, "y": 0 });
+
+      }
+
+      const appendAssociation = function(id, angle) {
+
+        const association = createSymbol('association', id)
+
+        association.append('text')
+          .text(".+.")
+          .attr("dx", "0.5, -4.5, -5")
+          .attr("font-weight", 600)
+
+        positionSymbol(association, id, angle, { "x" : 0, "y": 0 })
+
+      }
+
+      const appendSynonym = function(id, angle) {
+
+        const synonym = createSymbol('synonym', id)
+
+        synonym .append('text')
+          .text("=")
+
+        positionSymbol(synonym, id, angle, { "x" : 0, "y": 3 })
+
+      }
+
+      const appendGender = function (id, angle) {
+
+        const gender = createSymbol('gender', id)
+
+        gender .append('text')
+          .html("&#9794&#9792")
+          .attr("dx", "0, -5")
+          .style("font-family", "Courier")
+
+        positionSymbol(gender, id, angle, { "x" : 0, "y": 2 })
+
+      }
+
+      const appendCollection = function(id, angle) {
+
+        const collection = createSymbol('collection', id)
+        const collectionRadius = 2
+
+        for(let i = 0; i < 7; i ++) {
+          colcoords = [[-2, -2], [6, -1], [-6, 3], [5, -7], [-1, 7], [-1, -7 ], [-10, -5]]
+          collection.append('circle')
+            .attr("cx", colcoords[i][0])
+            .attr("cy", colcoords[i][1])
+            .attr("r", collectionRadius)
+        }
+
+        positionSymbol(collection, id, angle, { "x" : 0, "y": 0 })
+
+      }
+
+    }
+
+
+    const meisje = new createLemma('meisje', '../static/media/meisje_flash.png')
+    meisje.centerLemma()
+    meisje.fork(5, "#upperRight", "blue", ["opposite", "synonym", "collection", "association", "gender"])
+    meisje.fork(5, "#lowerLeft", "yellow", ["synonym", "opposite", "association", "synonym", "collection"])
+    meisje.fork(6, "#lowerRight", "purple", ["association", "opposite", "synonym", "synonym", "synonym", "gender"])
+    meisje.fork(5, "#upperLeft", "red", ["synonym", "opposite", "synonym", "gender", "collection"])
+     // nog te lezen : https://www.d3indepth.com/zoom-and-pan/
+
+    /*function handleZoom(e) { d3.select('svg #lemmaCenter').attr('transform', e.transform);}
+    let zoom = d3.zoom().on('zoom', function(e){ handleZoom });
+    d3.select('svg').call(zoom);
+    */
+  </script>
+</html>
